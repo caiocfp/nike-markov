@@ -266,3 +266,143 @@ ggplot(niketrans2 , aes(y = origem, x = destino, fill = probabilidade)) +
         axis.text.x = element_text(size = 8, angle = 90, hjust = 0.5, vjust = 0.5, face = "plain")) +
   ggtitle("Mapa da calor de matriz de transição dos canais")
 
+#logit#
+
+
+#novos dados#
+
+NikeRep10.1 <- NikeRep10  %>%
+  group_by(nike_user_id) %>%
+  summarise(visualizacao = sum(pageviews),
+            compras = sum(orders),
+            gasto = sum(revenue))
+
+
+NikeRep10.1 <- NikeRep10.1[-1,]
+
+#subset#
+
+NikeRep10.1$gastoUn <- NikeRep10.1$gasto/NikeRep10.1$compras
+NaoNulo  <- NikeRep10.1$gastoUn != 0
+NikeRep10.2 <- subset(NikeRep10.1,NaoNulo)
+
+
+
+
+
+#MQO##
+
+plot(x = NikeRep10.2$visualizacao,
+     y = NikeRep10.2$gastoUn)
+
+attach(Nike10.2)
+
+
+#cross validation#
+grau <- 1:5
+cv.error10 = rep(0,5)
+for(g in grau) {
+  Nike.MQO=glm(gastoUn~poly(visualizacao, g),
+              data = NikeRep10.2)
+  cv.error10[g] = cv.glm(NikeRep10.2,
+                         Nike.MQO,
+                         K = 10)$delta[1]         
+}
+
+
+plot(grau, cv.error10, type = "b")
+
+cv.error10
+
+#MQ0#
+
+Nike.MQO.1 <- glm(gastoUn ~ poly(visualizacao,2),
+                  data = NikeRep10.2)
+
+hist(Nike.MQO.1$residuals)
+
+
+coeftest(Nike.MQO.1)
+
+#funcao mqo#
+mqo <- function(x) {
+  (509.6367 -1122.7125*(x) + 312.0199*(x)^2)
+}
+
+Fit <- Nike.MQO.1$fitted.values
+Visualização <- NikeRep10.2$visualizacao
+Gasto_Uni    <- NikeRep10.2$gastoUn
+
+MqO_teste <- cbind(Fit,Visualização,Gasto_Uni)
+
+write.xlsx(as.data.frame(MqO_teste), 
+           file = "C:/Users/Admin/Desktop/Projetos/AtribuicaoCanal/MqO_teste.xlsx",
+           sheetName = "Sheet1",
+           col.names = T,
+           row.names = T,
+           append = F) 
+#lasso#
+
+
+#separar treino e teste#
+amostra <- sample.int(n = nrow(NikeRep10.1),
+                      size = floor(.75*nrow(NikeRep10.1)),
+                      replace = F)
+
+TreinoLasso <- NikeRep10.1[amostra,]
+TesteLasso  <- NikeRep10.1[-amostra,]
+
+x = model.matrix(gastoUn~poly(visualizacao,9),TreinoLasso)
+y = TreinoLasso$gastoUn
+
+xTest = model.matrix(gastoUn~poly(visualizacao,9),TesteLasso)
+yTest = TesteLasso$gastoUn
+
+#Lambda#
+grid = 10^seq(10,-2,length = 100)
+
+#modelo#
+Mod.Lasso <- glmnet(x,y, alpha = 1, lambda = grid, nfolds = 5)
+plot(Mod.Lasso)
+
+#seleção do menor lambda#
+lambdaNike <- Mod.Lasso$lambda
+which.min(lambdaNike)
+
+#modelo2#
+Mod.Lasso2 <- glmnet(x,y, alpha = 1, lambda = 100, nfolds = 5)
+PredLasso_Niek   <- predict(Mod.Lasso2, s = 100, newx = xTest)
+
+
+#Logit#
+
+NikeRep10.1$convert <- ifelse(NikeRep10.1$compras >= 1,1,0) 
+
+LogitNike <- glm(formula = convert ~  visualizacao,
+                data = NikeRep10.1,
+                family = binomial("logit"))
+
+
+summary(LogitNike)
+#funcao de probabilidade#
+p <- function (x) {
+  (exp(-3.82 + x*0.00005142))/(1 + exp(-3.82 + x*0.00005142))
+}
+
+
+Visualizacao <- order(NikeRep10.1$visualizacao)
+Prob         <- p(Visualizacao)
+
+
+LogitNike <- cbind(Prob,Visualizacao)
+plot(x=Visualizacao,y = Prob)
+
+
+#exportacao de 
+LogitNike <- cbind(Prob,Visualizacao)
+write.xlsx(as.data.frame(LogitNike), 
+           file = "C:/Users/Admin/Desktop/Projetos/AtribuicaoCanal/LogitNike.xlsx",
+           sheetName = "Sheet1",
+           col.names = T,
+           row.names = T,
+           append = F) 
