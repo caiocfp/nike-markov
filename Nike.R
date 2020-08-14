@@ -1,21 +1,9 @@
 #pacotes#
+pacotes <- c("dplyr","reshape2","ggplot2","ggthemes","ggrepel","RColorBrewer","ChannelAttribution",
+             "markovchain","xlsx","shape","diagram","igraph","stringr","tidyr","shiny","plotly")
+lapply(pacotes, library, character.only = T)
 
-library(dplyr)
-library(reshape2)
-library(ggplot2)
-library(ggthemes)
-library(ggrepel)
-library(RColorBrewer)
-library(ChannelAttribution)
-library(markovchain)
-library(xlsx)
-library(shape)
-library(diagram)
-library(igraph)
-library(stringr)
-library(tidyr)
-library(shiny)
-library(plotly)
+
 #Dados report4#
 
 NikeRep10  <- read.csv("bq-results-20200731-164059-bzdz7tpr3zju.csv",sep = ",")
